@@ -6,21 +6,22 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
+import '../widgets/app_snack_bar.dart';
 
-class S8Screen extends ConsumerStatefulWidget {
-  const S8Screen({super.key});
+class TrustedPersonFormScreen extends ConsumerStatefulWidget {
+  const TrustedPersonFormScreen({super.key});
 
   @override
-  ConsumerState<S8Screen> createState() => _S8ScreenState();
+  ConsumerState<TrustedPersonFormScreen> createState() => _TrustedPersonFormScreenState();
 }
 
-class _S8ScreenState extends ConsumerState<S8Screen> {
+class _TrustedPersonFormScreenState extends ConsumerState<TrustedPersonFormScreen> {
   int _step = 1;
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
   String _relation = '';
   String _pairingCode = '';
-  
+
   Friend? _editingFriend;
 
   @override
@@ -43,7 +44,22 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
   }
 
   bool get _isEditMode => _editingFriend != null;
-  bool get _isFormValid => _nicknameController.text.trim().isNotEmpty && _relation.isNotEmpty && _contactController.text.trim().isNotEmpty;
+  bool get _isFormValid =>
+      _nicknameController.text.trim().isNotEmpty &&
+      _relation.isNotEmpty &&
+      _contactController.text.trim().isNotEmpty;
+
+  InputDecoration _fieldDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: AppColors.textFaint),
+      filled: true,
+      fillColor: AppColors.cardWhite,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
+    );
+  }
 
   void _showRelationSheet() {
     showModalBottomSheet(
@@ -82,7 +98,9 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
   void _generatePairingCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rnd = Random();
-    _pairingCode = String.fromCharCodes(Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+    _pairingCode = String.fromCharCodes(
+      Iterable.generate(6, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
+    );
   }
 
   void _handlePrimaryAction() {
@@ -94,25 +112,11 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
       );
       ref.read(friendsProvider.notifier).updateFriend(updated);
       ref.read(selectedFriendIdProvider.notifier).state = null;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('저장됐어', textAlign: TextAlign.center),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          margin: const EdgeInsets.only(bottom: 64, left: 100, right: 100),
-          backgroundColor: AppColors.textMain,
-          duration: const Duration(milliseconds: 1500),
-        ),
-      );
+      AppSnackBar.show(context, '저장됐어');
       ref.read(currentScreenProvider.notifier).state = 'S7';
     } else {
-      if (_pairingCode.isEmpty) {
-        _generatePairingCode();
-      }
-      setState(() {
-        _step = 2;
-      });
+      if (_pairingCode.isEmpty) _generatePairingCode();
+      setState(() => _step = 2);
     }
   }
 
@@ -129,23 +133,22 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
     ref.read(currentScreenProvider.notifier).state = 'S7';
   }
 
+  void _navigateBack() {
+    ref.read(selectedFriendIdProvider.notifier).state = null;
+    ref.read(currentScreenProvider.notifier).state = 'S7';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
         if (_step == 2) {
           setState(() => _step = 1);
-          return false;
+          return;
         }
-        if (_isEditMode && (_nicknameController.text != _editingFriend!.nickname || _relation != _editingFriend!.relation || _contactController.text != _editingFriend!.contact)) {
-          // TODO: show discard dialog
-          ref.read(selectedFriendIdProvider.notifier).state = null;
-          ref.read(currentScreenProvider.notifier).state = 'S7';
-          return false;
-        }
-        ref.read(selectedFriendIdProvider.notifier).state = null;
-        ref.read(currentScreenProvider.notifier).state = 'S7';
-        return false;
+        _navigateBack();
       },
       child: Column(
         children: [
@@ -158,23 +161,17 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Text(_isEditMode ? '친구 정보 수정' : '새 친구 추가', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.textMain)),
+                      child: Text(
+                        _isEditMode ? '친구 정보 수정' : '새 친구 추가',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.textMain),
+                      ),
                     ),
                     const Text('별명', style: TextStyle(fontSize: 14, color: AppColors.textSub)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _nicknameController,
                       maxLength: 10,
-                      decoration: InputDecoration(
-                        hintText: '어떻게 부를까?',
-                        hintStyle: const TextStyle(color: AppColors.textFaint),
-                        counterText: '',
-                        filled: true,
-                        fillColor: AppColors.cardWhite,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
-                      ),
+                      decoration: _fieldDecoration('어떻게 부를까?').copyWith(counterText: ''),
                       onChanged: (v) => setState(() {}),
                     ),
                     const SizedBox(height: 20),
@@ -194,7 +191,10 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(_relation.isEmpty ? '선택하기' : _relation, style: TextStyle(fontSize: 16, color: _relation.isEmpty ? AppColors.textFaint : AppColors.textMain)),
+                            Text(
+                              _relation.isEmpty ? '선택하기' : _relation,
+                              style: TextStyle(fontSize: 16, color: _relation.isEmpty ? AppColors.textFaint : AppColors.textMain),
+                            ),
                             const Icon(LucideIcons.chevronDown, color: AppColors.textFaint, size: 20),
                           ],
                         ),
@@ -206,15 +206,7 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                     TextField(
                       controller: _contactController,
                       keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        hintText: '010-0000-0000',
-                        hintStyle: const TextStyle(color: AppColors.textFaint),
-                        filled: true,
-                        fillColor: AppColors.cardWhite,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppColors.divider)),
-                      ),
+                      decoration: _fieldDecoration('010-0000-0000'),
                       onChanged: (v) => setState(() {}),
                     ),
                   ],
@@ -243,7 +235,6 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                 ),
               ),
             ),
-          
           Container(
             color: AppColors.bgBase,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -259,7 +250,10 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         elevation: 0,
                       ),
-                      child: Text(_isEditMode ? '저장하기' : '초대 보내기', style: TextStyle(color: _isFormValid ? AppColors.cardWhite : AppColors.textFaint, fontSize: 16, fontWeight: FontWeight.w500)),
+                      child: Text(
+                        _isEditMode ? '저장하기' : '초대 보내기',
+                        style: TextStyle(color: _isFormValid ? AppColors.cardWhite : AppColors.textFaint, fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
                     ),
                   )
                 : Column(
@@ -284,7 +278,7 @@ class _S8ScreenState extends ConsumerState<S8Screen> {
                       TextButton(
                         onPressed: _handleFinalize,
                         child: const Text('다음에 보내기', style: TextStyle(color: AppColors.textSub, fontSize: 14, fontWeight: FontWeight.w500)),
-                      )
+                      ),
                     ],
                   ),
           ),

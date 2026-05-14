@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/date_formatter.dart';
+import '../widgets/app_snack_bar.dart';
 
-class S4Screen extends ConsumerStatefulWidget {
-  const S4Screen({super.key});
+class DiaryPreviewScreen extends ConsumerStatefulWidget {
+  const DiaryPreviewScreen({super.key});
 
   @override
-  ConsumerState<S4Screen> createState() => _S4ScreenState();
+  ConsumerState<DiaryPreviewScreen> createState() => _DiaryPreviewScreenState();
 }
 
-class _S4ScreenState extends ConsumerState<S4Screen> {
+class _DiaryPreviewScreenState extends ConsumerState<DiaryPreviewScreen> {
   bool _isConverting = true;
   bool _isEditing = false;
+  bool _isDirect = false;
   String _editStartText = '';
   final TextEditingController _textController = TextEditingController();
 
@@ -29,74 +31,67 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _generatePendingDiary();
+      _isDirect = ref.read(directDiaryModeProvider);
+      if (_isDirect) {
+        _initDirectMode();
+      } else {
+        _generatePendingDiary();
+      }
+    });
+  }
+
+  void _initDirectMode() {
+    final now = DateTime.now();
+    final newDiary = DiaryEntry(
+      id: now.millisecondsSinceEpoch,
+      date: DateFormatter.toIso(now.year, now.month, now.day),
+      mode: ConversationMode.write,
+      text: '',
+    );
+    ref.read(pendingDiaryProvider.notifier).state = newDiary;
+    _textController.text = '';
+    setState(() {
+      _isConverting = false;
+      _isEditing = true;
     });
   }
 
   void _generatePendingDiary() {
     final convoState = ref.read(conversationProvider);
     final convoLength = convoState.messages.length;
-    final mockText = convoLength == 0 
-        ? _mockDiaryTexts[0] 
+    final mockText = convoLength == 0
+        ? _mockDiaryTexts[0]
         : _mockDiaryTexts[convoLength % _mockDiaryTexts.length];
-    
-    final formatter = DateFormat('yyyy-MM-dd');
+
+    final now = DateTime.now();
     final newDiary = DiaryEntry(
-      id: DateTime.now().millisecondsSinceEpoch,
-      date: formatter.format(DateTime.now()),
+      id: now.millisecondsSinceEpoch,
+      date: DateFormatter.toIso(now.year, now.month, now.day),
       mode: ref.read(lastConversationModeProvider),
       text: mockText,
     );
 
     ref.read(pendingDiaryProvider.notifier).state = newDiary;
     _textController.text = mockText;
-
-    // We shouldn't clear conversation here until it's saved or deleted,
-    // but the original code sets isActive to false.
     ref.read(conversationProvider.notifier).endConversation();
 
     Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        setState(() {
-          _isConverting = false;
-        });
-      }
+      if (mounted) setState(() => _isConverting = false);
     });
-  }
-
-  String _formattedDateString(String dateStr) {
-    if (dateStr.isEmpty) return "";
-    try {
-      final date = DateTime.parse(dateStr);
-      final dayNames = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
-      final dayName = dayNames[date.weekday % 7];
-      return "${date.month}월 ${date.day}일 $dayName";
-    } catch (e) {
-      return dateStr;
-    }
   }
 
   void _handleSave() {
     final pendingDiary = ref.read(pendingDiaryProvider);
     if (pendingDiary == null) return;
+    if (_textController.text.trim().isEmpty) return;
 
-    final updatedDiary = pendingDiary.copyWith(text: _textController.text);
+    final updatedDiary = pendingDiary.copyWith(text: _textController.text.trim());
     ref.read(diariesProvider.notifier).addDiary(updatedDiary);
     ref.read(conversationProvider.notifier).clearMessages();
     ref.read(pendingDiaryProvider.notifier).state = null;
-    
-    // Show Toast
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('저장됐어', textAlign: TextAlign.center),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        margin: const EdgeInsets.only(bottom: 64, left: 100, right: 100),
-        backgroundColor: AppColors.textMain,
-        duration: const Duration(milliseconds: 1500),
-      ),
-    );
+    ref.read(directDiaryModeProvider.notifier).state = false;
 
+    AppSnackBar.show(context, '저장됐어');
     ref.read(currentScreenProvider.notifier).state = 'S1';
   }
 
@@ -120,6 +115,7 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
                 Navigator.pop(context);
                 ref.read(conversationProvider.notifier).clearMessages();
                 ref.read(pendingDiaryProvider.notifier).state = null;
+                ref.read(directDiaryModeProvider.notifier).state = false;
                 ref.read(currentScreenProvider.notifier).state = 'S1';
               },
               child: const Text('삭제', style: TextStyle(color: AppColors.bgUser)),
@@ -139,7 +135,7 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Text(
-            _formattedDateString(pendingDiary?.date ?? ""),
+            DateFormatter.toLabelFull(pendingDiary?.date ?? ''),
             style: const TextStyle(fontSize: 14, color: AppColors.textSub),
           ),
         ),
@@ -169,7 +165,11 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
                           controller: _textController,
                           maxLines: null,
                           autofocus: true,
-                          decoration: const InputDecoration(border: InputBorder.none),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: _isDirect ? '오늘 하루를 적어봐' : null,
+                            hintStyle: const TextStyle(color: AppColors.textFaint, fontSize: 16, height: 1.7),
+                          ),
                           style: const TextStyle(fontSize: 16, height: 1.7, color: AppColors.textMain),
                         )
                       : Text(
@@ -203,12 +203,12 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     TextButton(
-                      onPressed: _isConverting ? null : () {
-                        setState(() {
-                          _isEditing = true;
-                          _editStartText = _textController.text;
-                        });
-                      },
+                      onPressed: _isConverting
+                          ? null
+                          : () => setState(() {
+                                _isEditing = true;
+                                _editStartText = _textController.text;
+                              }),
                       child: Text('수정', style: TextStyle(color: _isConverting ? AppColors.textFaint : AppColors.textSub)),
                     ),
                     const SizedBox(width: 32),
@@ -218,14 +218,21 @@ class _S4ScreenState extends ConsumerState<S4Screen> {
                     ),
                   ],
                 )
-              else
+              else if (_isDirect)
                 TextButton(
                   onPressed: () {
-                    setState(() {
-                      _isEditing = false;
-                      _textController.text = _editStartText;
-                    });
+                    ref.read(directDiaryModeProvider.notifier).state = false;
+                    ref.read(pendingDiaryProvider.notifier).state = null;
+                    ref.read(currentScreenProvider.notifier).state = 'S1';
                   },
+                  child: const Text('취소', style: TextStyle(color: AppColors.textSub)),
+                )
+              else
+                TextButton(
+                  onPressed: () => setState(() {
+                    _isEditing = false;
+                    _textController.text = _editStartText;
+                  }),
                   child: const Text('되돌리기', style: TextStyle(color: AppColors.textSub)),
                 ),
             ],

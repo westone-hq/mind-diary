@@ -1,5 +1,5 @@
-name: quiet_diary
-description: "A new Flutter project."
+name: mind_diary
+description: "학교밖 청소년을 위한 AI 대화형 감정 일기 앱"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

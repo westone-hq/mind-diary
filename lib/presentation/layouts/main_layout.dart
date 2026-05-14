@@ -12,15 +12,11 @@ class MainLayout extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentScreen = ref.watch(currentScreenProvider);
 
-    // Hide Header for specific screens if needed
     final showHeader = currentScreen != 'S6' && currentScreen != 'S8';
-    
-    // Hide TabBar for conversational screens
     final hideTabBar = ['S2', 'S3', 'S4'].contains(currentScreen);
 
     return Scaffold(
       appBar: showHeader ? const GlobalHeader() : null,
-      endDrawer: const AppDrawer(),
       body: _buildScreen(currentScreen),
       bottomNavigationBar: hideTabBar ? null : const GlobalTabBar(),
     );
@@ -29,21 +25,21 @@ class MainLayout extends ConsumerWidget {
   Widget _buildScreen(String screenId) {
     switch (screenId) {
       case 'S1':
-        return const S1Screen();
+        return const HomeScreen();
       case 'S2':
-        return const S2Screen();
+        return const VoiceChatScreen();
       case 'S3':
-        return const S3Screen();
+        return const TextChatScreen();
       case 'S4':
-        return const S4Screen();
+        return const DiaryPreviewScreen();
       case 'S5':
-        return const S5Screen();
+        return const DiaryListScreen();
       case 'S6':
-        return const S6Screen();
+        return const DiaryDetailScreen();
       case 'S7':
-        return const S7Screen();
+        return const TrustedPersonsScreen();
       case 'S8':
-        return const S8Screen();
+        return const TrustedPersonFormScreen();
       default:
         return Center(child: Text('Unknown Screen: $screenId'));
     }

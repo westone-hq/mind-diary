@@ -7,14 +7,14 @@ import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/message_list.dart';
 
-class S2Screen extends ConsumerStatefulWidget {
-  const S2Screen({super.key});
+class VoiceChatScreen extends ConsumerStatefulWidget {
+  const VoiceChatScreen({super.key});
 
   @override
-  ConsumerState<S2Screen> createState() => _S2ScreenState();
+  ConsumerState<VoiceChatScreen> createState() => _VoiceChatScreenState();
 }
 
-class _S2ScreenState extends ConsumerState<S2Screen> {
+class _VoiceChatScreenState extends ConsumerState<VoiceChatScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isPaused = false;
   bool _isWaitingAi = false;
@@ -58,14 +58,14 @@ class _S2ScreenState extends ConsumerState<S2Screen> {
 
     final userText = _mockUserUtterances[_userMsgCount % _mockUserUtterances.length];
     final userMsg = Message(id: DateTime.now().millisecondsSinceEpoch, role: MessageRole.user, text: userText);
-    
+
     ref.read(conversationProvider.notifier).addMessage(userMsg);
-    
+
     setState(() {
       _userMsgCount++;
       _isWaitingAi = true;
     });
-    
+
     Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
 
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -73,10 +73,8 @@ class _S2ScreenState extends ConsumerState<S2Screen> {
       final aiText = _mockAiResponses[(_userMsgCount - 1) % _mockAiResponses.length];
       final aiMsg = Message(id: DateTime.now().millisecondsSinceEpoch, role: MessageRole.ai, text: aiText);
       ref.read(conversationProvider.notifier).addMessage(aiMsg);
-      
-      setState(() {
-        _isWaitingAi = false;
-      });
+
+      setState(() => _isWaitingAi = false);
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
     });
   }
@@ -135,15 +133,13 @@ class _S2ScreenState extends ConsumerState<S2Screen> {
               IconButton(
                 icon: const Icon(LucideIcons.keyboard),
                 color: AppColors.textSub,
-                onPressed: () {
-                  ref.read(currentScreenProvider.notifier).state = 'S3';
-                },
+                onPressed: () => ref.read(currentScreenProvider.notifier).state = 'S3',
               ),
               IconButton(
                 icon: const Icon(LucideIcons.x),
                 color: AppColors.bgUser,
                 onPressed: () {
-                  // TODO: Show exit confirm sheet
+                  // TODO: show exit confirm sheet
                   ref.read(conversationProvider.notifier).endConversation();
                   ref.read(currentScreenProvider.notifier).state = 'S4';
                 },
@@ -203,10 +199,9 @@ class _WaveIndicatorState extends State<_WaveIndicator> with SingleTickerProvide
           builder: (context, child) {
             double value = _controller.value - delays[index];
             if (value < 0) value = 0;
-            // mock a wave height
             double height = 8 + 32 * (value < 0.5 ? value * 2 : (1 - value) * 2);
             if (widget.isPaused) height = 8;
-            
+
             return Container(
               width: 4,
               height: height,

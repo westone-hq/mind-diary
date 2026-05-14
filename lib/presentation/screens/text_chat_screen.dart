@@ -7,18 +7,18 @@ import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../widgets/message_list.dart';
 
-class S3Screen extends ConsumerStatefulWidget {
-  const S3Screen({super.key});
+class TextChatScreen extends ConsumerStatefulWidget {
+  const TextChatScreen({super.key});
 
   @override
-  ConsumerState<S3Screen> createState() => _S3ScreenState();
+  ConsumerState<TextChatScreen> createState() => _TextChatScreenState();
 }
 
-class _S3ScreenState extends ConsumerState<S3Screen> {
+class _TextChatScreenState extends ConsumerState<TextChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _textController = TextEditingController();
   bool _isWaitingAi = false;
-  
+
   final List<String> _mockAiResponses = [
     "응, 듣고 있어. 천천히 말해도 돼.",
     "그랬구나. 그때 기분이 어땠어?",
@@ -34,7 +34,28 @@ class _S3ScreenState extends ConsumerState<S3Screen> {
       ref.read(lastConversationModeProvider.notifier).state = ConversationMode.text;
       if (!ref.read(conversationProvider).isActive) {
         ref.read(conversationProvider.notifier).startConversation();
+      } else {
+        final msgs = ref.read(conversationProvider).messages;
+        if (msgs.isNotEmpty && msgs.last.role == MessageRole.user) {
+          _triggerAiResponse();
+        }
       }
+      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+    });
+  }
+
+  void _triggerAiResponse() {
+    setState(() => _isWaitingAi = true);
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      final userCount = ref.read(conversationProvider).messages
+          .where((m) => m.role == MessageRole.user)
+          .length;
+      final aiText = _mockAiResponses[(userCount - 1) % _mockAiResponses.length];
+      final aiMsg = Message(id: DateTime.now().millisecondsSinceEpoch, role: MessageRole.ai, text: aiText);
+      ref.read(conversationProvider.notifier).addMessage(aiMsg);
+      setState(() => _isWaitingAi = false);
+      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
     });
   }
 
@@ -48,30 +69,32 @@ class _S3ScreenState extends ConsumerState<S3Screen> {
     }
   }
 
+  void _handleEndConversation() {
+    ref.read(conversationProvider.notifier).endConversation();
+    ref.read(currentScreenProvider.notifier).state = 'S4';
+  }
+
   void _handleSend() {
     final text = _textController.text.trim();
     if (text.isEmpty || _isWaitingAi) return;
 
     final userMsg = Message(id: DateTime.now().millisecondsSinceEpoch, role: MessageRole.user, text: text);
     ref.read(conversationProvider.notifier).addMessage(userMsg);
-    
+
     _textController.clear();
-    setState(() {
-      _isWaitingAi = true;
-    });
-    
+    setState(() => _isWaitingAi = true);
+
     Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
 
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!mounted) return;
-      final userCount = ref.read(conversationProvider).messages.where((m) => m.role == MessageRole.user).length;
+      final userCount = ref.read(conversationProvider).messages
+          .where((m) => m.role == MessageRole.user)
+          .length;
       final aiText = _mockAiResponses[(userCount - 1) % _mockAiResponses.length];
       final aiMsg = Message(id: DateTime.now().millisecondsSinceEpoch, role: MessageRole.ai, text: aiText);
-      
       ref.read(conversationProvider.notifier).addMessage(aiMsg);
-      setState(() {
-        _isWaitingAi = false;
-      });
+      setState(() => _isWaitingAi = false);
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
     });
   }
@@ -97,6 +120,16 @@ class _S3ScreenState extends ConsumerState<S3Screen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: IconButton(
+                    icon: const Icon(LucideIcons.x, size: 20),
+                    color: AppColors.textSub,
+                    onPressed: _handleEndConversation,
+                  ),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(

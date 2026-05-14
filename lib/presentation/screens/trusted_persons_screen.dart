@@ -6,8 +6,8 @@ import '../../core/models/models.dart';
 import '../../core/providers/providers.dart';
 import '../../core/theme/app_colors.dart';
 
-class S7Screen extends ConsumerWidget {
-  const S7Screen({super.key});
+class TrustedPersonsScreen extends ConsumerWidget {
+  const TrustedPersonsScreen({super.key});
 
   void _showFriendMenu(BuildContext context, WidgetRef ref, Friend friend) {
     showModalBottomSheet(
@@ -144,7 +144,7 @@ class S7Screen extends ConsumerWidget {
                                     ),
                                     child: const Text('초대 중', style: TextStyle(fontSize: 11, color: AppColors.textSub)),
                                   ),
-                                ]
+                                ],
                               ],
                             ),
                           ],

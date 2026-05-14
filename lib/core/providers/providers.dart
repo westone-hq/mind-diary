@@ -7,6 +7,7 @@ final lastConversationModeProvider = StateProvider<ConversationMode>((ref) => Co
 final selectedDiaryIdProvider = StateProvider<int?>((ref) => null);
 final selectedFriendIdProvider = StateProvider<int?>((ref) => null);
 final pendingDiaryProvider = StateProvider<DiaryEntry?>((ref) => null);
+final directDiaryModeProvider = StateProvider<bool>((ref) => false);
 
 // --- Notifiers for Complex State ---
 
